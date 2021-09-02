@@ -1,0 +1,35 @@
+name: GitHub Actions
+
+env:
+  CARGO_TERM_COLOR: always
+  
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+  workflow_dispatch:
+
+jobs:
+  tslint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v2.1.2
+
+      - name: npm install
+        run: npm ci
+
+      - name: lint
+        run: npm run lint
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: cargo build
+        run: cargo build --verbose
+
