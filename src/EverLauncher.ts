@@ -112,7 +112,7 @@ export class EverLauncher {
     }
 
     public static platform() : string {
-        if (typeof EverLauncher.currentConfig !== "string") {
+        if (typeof EverLauncher.currentPlatform !== "string") {
             throw "Not initialized."
         }
         return this.currentPlatform;
