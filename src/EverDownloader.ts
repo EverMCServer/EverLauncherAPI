@@ -20,27 +20,7 @@
 import { tauri } from "@tauri-apps/api";
 import { plainToClass } from "class-transformer";
 
-declare namespace EverDownloader {
-
-    interface Progress {
-        getTotalSize() : number;
-        getDownloadedSize() : number;
-        isSuccessful() : boolean;
-        isFinished() : boolean;
-        isValidated() : boolean;
-        isError() : boolean;
-        getError() : string | null;
-    }
-
-    interface DownloadTask extends Promise<EverDownloader.Progress> {
-        dispose() : Promise<void>;
-        isDisposed() : boolean;
-        unzipResult(dir: string) : Promise<void>;
-        getResult() : Promise<Uint8Array>;
-    }
-}
-
-class Progress implements EverDownloader.Progress {
+export class Progress {
     private total: number;
     private downloaded: number;
     private finished: boolean;
@@ -84,7 +64,7 @@ class Progress implements EverDownloader.Progress {
     }
 }
 
-class DownloadInfo {
+export class DownloadInfo {
     public downloaded!: number;
     public finished!: boolean;
     public total_size!: number;
@@ -105,12 +85,12 @@ class DownloadInfo {
     }
 }
 
-class DownloadTask extends Promise<EverDownloader.Progress> implements EverDownloader.DownloadTask {
+export class DownloadTask extends Promise<Progress> {
     private hash: string;
     private size!: number;
     private active!: boolean;
 
-    constructor(url: string, hash: string, validate: boolean, update: (progress: EverDownloader.Progress) => void) {
+    constructor(url: string, hash: string, validate: boolean, update: (progress: Progress) => void) {
 
         super((resolve => {
             tauri.invoke("el_download", {url: url, hash: hash})
@@ -154,13 +134,13 @@ class DownloadTask extends Promise<EverDownloader.Progress> implements EverDownl
         this.hash = hash;
     }
 
-    public runner(update: (progress:EverDownloader.Progress) => void) : Promise<DownloadInfo> {
+    private runner(update: (progress:Progress) => void) : Promise<DownloadInfo> {
         return new Promise(resolve => {
             this.tick(resolve, update);
         })
     }
 
-    private tick(resolve: (result: DownloadInfo) => void, update: (progress:EverDownloader.Progress) => void) {
+    private tick(resolve: (result: DownloadInfo) => void, update: (progress:Progress) => void) {
         tauri.invoke("el_download_progress", {hash: this.hash})
         .then(ret => {
             if (typeof ret === "string") {
@@ -186,69 +166,49 @@ class DownloadTask extends Promise<EverDownloader.Progress> implements EverDownl
         })
     }
 
-    private validate() : Promise<boolean> {
-        return new Promise(resolve => {
-            tauri.invoke("el_download_validate_sha256", {hash: this.hash})
-            .then(ret => {
-                if (typeof ret === "boolean") {
-                    resolve(ret);
-                    return;
-                }
-                if (typeof ret === "string") {
-                    throw ret;
-                }
-                throw "Internal Error";
-            })
-        })
+    private async validate() : Promise<boolean> {
+        const ret = await tauri.invoke("el_download_validate_sha256", { hash: this.hash });
+        if (typeof ret === "boolean") {
+            return ret;
+        }
+        if (typeof ret === "string") {
+            throw ret;
+        }
+        throw "Internal Error";
     }
 
-    public unzipResult(dir: string) : Promise<void> {
-        return new Promise(resolve => {
-            tauri.invoke("el_download_unzip", {hash: this.hash, path: dir})
-            .then(ret => {
-                if (ret === null) {
-                    resolve();
-                    return;
-                }
-                if (typeof ret === "string") {
-                    throw ret;
-                }
-                throw "Internal Error";
-            })
-        })
+    public async unzipResult(dir: string) : Promise<void> {
+        const ret = await tauri.invoke("el_download_unzip", { hash: this.hash, path: dir });
+        if (ret === null) {
+            return;
+        }
+        if (typeof ret === "string") {
+            throw ret;
+        }
+        throw "Internal Error";
     }
 
-    public getResult() : Promise<Uint8Array> {
-        return new Promise(resolve => {
-            tauri.invoke("el_download_getfile", {hash: this.hash})
-            .then(ret => {
-                if (ret instanceof Array && typeof ret[0] === "number") {
-                    resolve(new Uint8Array(ret));
-                    return;
-                }
-                if (typeof ret === "string") {
-                    throw ret;
-                }
-                throw "Internal Error";
-            })
-        })
+    public async getResult() : Promise<Uint8Array> {
+        const ret = await tauri.invoke("el_download_getfile", { hash: this.hash });
+        if (ret instanceof Array && typeof ret[0] === "number") {
+            return new Uint8Array(ret);
+        }
+        if (typeof ret === "string") {
+            throw ret;
+        }
+        throw "Internal Error";
     }
 
-    public dispose() : Promise<void> {
+    public async dispose() : Promise<void> {
         this.active = false;
-        return new Promise(resolve => {
-            tauri.invoke("el_download_terminate", {hash: this.hash})
-            .then(ret => {
-                if (ret === null) {
-                    resolve();
-                    return;
-                }
-                if (typeof ret === "string") {
-                    throw ret;
-                }
-                throw "Internal Error";
-            })
-        })
+        const ret = await tauri.invoke("el_download_terminate", { hash: this.hash });
+        if (ret === null) {
+            return;
+        }
+        if (typeof ret === "string") {
+            throw ret;
+        }
+        throw "Internal Error";
     }
 
     public isDisposed() : boolean {
@@ -256,11 +216,11 @@ class DownloadTask extends Promise<EverDownloader.Progress> implements EverDownl
     }
 }
 
-class EverDownloader {
+export class EverDownloader {
 
     public static updateInterval = 100;
 
-    public static download(url: string, hash?: string, timeout?: number, update?: (progress: EverDownloader.Progress) => void) : Promise<Uint8Array> {
+    public static download(url: string, hash?: string, timeout?: number, update?: (progress: Progress) => void) : Promise<Uint8Array> {
         if (typeof timeout === "number") {
             return this.download_timeout(url, timeout, hash, update);
         } else {
@@ -268,48 +228,38 @@ class EverDownloader {
         }
     }
 
-    public static download_simple(url: string, hash?: string, update?: (progress: EverDownloader.Progress) => void) : Promise<Uint8Array> {
-        return new Promise(resolve => {
-            const ahash = typeof hash === "string" ? hash : url;
-            const aupdate = typeof update === "function" ? update : () => {};
-            const task = new DownloadTask(url, ahash, typeof hash === "string", aupdate);
-            task.then(ret => {
-                if (!ret.isSuccessful()) {
-                    task.dispose();
-                    throw ret.getError();
-                }
-                return task.getResult();
-            })
-            .then(data => {
-                task.dispose();
-                resolve(data);
-            })
-        })
+    public static async download_simple(url: string, hash?: string, update?: (progress: Progress) => void) : Promise<Uint8Array> {
+        const ahash = typeof hash === "string" ? hash : url;
+        const aupdate = typeof update === "function" ? update : () => {};
+        const task = new DownloadTask(url, ahash, typeof hash === "string", aupdate);
+        const ret = await task;
+        if (!ret.isSuccessful()) {
+            task.dispose();
+            throw ret.getError();
+        }
+        const data = await task.getResult();
+        task.dispose();
+        return (data);
     }
 
-    public static download_timeout(url: string, timeout: number, hash?: string, update?: (progress: EverDownloader.Progress) => void) : Promise<Uint8Array> {
-        return new Promise(resolve => {
-            const ahash = typeof hash === "string" ? hash : url;
-            const aupdate = typeof update === "function" ? update : () => {};
-            const task = new DownloadTask(url, ahash, typeof hash === "string", aupdate);
-            const time = this.delay(timeout);
-            Promise.race([time, task]).then(ret => {
-                if (ret instanceof Object) {
-                    if (!ret.isSuccessful()) {
-                        task.dispose();
-                        throw ret.getError();
-                    }
-                    return task.getResult();
-                } else {
-                    task.dispose();
-                    throw "timeout";
-                }
-            })
-            .then(data => {
+    public static async download_timeout(url: string, timeout: number, hash?: string, update?: (progress: Progress) => void) : Promise<Uint8Array> {
+        const ahash = typeof hash === "string" ? hash : url;
+        const aupdate = typeof update === "function" ? update : () => {};
+        const task = new DownloadTask(url, ahash, typeof hash === "string", aupdate);
+        const time = this.delay(timeout);
+        const ret = await Promise.race([time, task]);
+        if (ret instanceof Object) {
+            if (!ret.isSuccessful()) {
                 task.dispose();
-                resolve(data);
-            })
-        })
+                throw ret.getError();
+            }
+            const data = await task.getResult();
+            task.dispose();
+            return data;
+        } else {
+            task.dispose();
+            throw "timeout";
+        }
     }
 
     private static delay(ms: number) : Promise<void> {
@@ -319,5 +269,3 @@ class EverDownloader {
     }
 
 }
-
-export default EverDownloader;

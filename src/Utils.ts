@@ -18,101 +18,72 @@
  */
 
 import { fs, os, path } from "@tauri-apps/api";
-import EverConfig from "./EverConfig";
+import { EverConfig } from "./EverConfig";
 import { EverLauncher } from "./EverLauncher";
 
-export default class Utils {
-
-    /**
-     * Get the current platform. In unsupported platforms, `undefined` will be returned.
-     * 
-     *     linux+x64 -> 'linux'
-     *     darwin+x64 -> 'mac'
-     *     windows+x64 -> 'windows'
-     *     windows+x86 -> 'win32'
-     *     others -> undefined
-     * 
-     * @returns current platform.
-     */
-    public static getPlatform() : Promise<string|undefined> {
-        return new Promise(resolve => {
-            Promise.all([os.arch(), os.type()])
-            .then(([arch, type]) => {
-                switch (type) {
-                    case "Linux":
-                        if (arch === "x86_64") {
-                            resolve("linux");
-                            return;
-                        }
-                        break;
-                    case "Darwin":
-                        if (arch === "x86_64") {
-                            resolve("mac");
-                            return;
-                        }
-                        break;
-                    case "Windows_NT":
-                        if (arch === "x86_64") {
-                            resolve("windows");
-                            return;
-                        } else if (arch === "x86") {
-                            resolve("win32");
-                            return;
-                        }
-                        break;
-                }
-                resolve(undefined);
-            })
-        })
+/**
+ * Get the current platform. In unsupported platforms, `undefined` will be returned.
+ * 
+ *     linux+x64 -> 'linux'
+ *     darwin+x64 -> 'mac'
+ *     windows+x64 -> 'windows'
+ *     windows+x86 -> 'win32'
+ *     others -> undefined
+ * 
+ * @returns current platform.
+ */
+export async function getPlatform() : Promise<string|undefined> {
+    const arch = await os.arch();
+    const type = await os.type();
+    switch (type) {
+        case "Linux":
+            if (arch === "x86_64") {
+                return "linux";
+            }
+            break;
+        case "Darwin":
+            if (arch === "x86_64") {
+                return "mac";
+            }
+            break;
+        case "Windows_NT":
+            if (arch === "x86_64") {
+                return "windows"
+            } else if (arch === "x86") {
+                return "win32"
+            }
+            break;
     }
+    return undefined;
+}
 
-    public static getDataDir(sub?: string) : Promise<string> {
-        return new Promise(resolve => {
-            path.dataDir()
-            .then(dataDir => {
-                if (sub === undefined) {
-                    return path.join(dataDir, "EverLauncher");
-                } else {
-                    return path.join(dataDir, "EverLauncher", sub);
-                }
-            })
-            .then(dir => {
-                resolve(dir);
-            })
-        });
+export async function getDataDir(sub?: string) : Promise<string> {
+    const dataDir = await path.dataDir();
+    if (sub === undefined) {
+        return path.join(dataDir, "EverLauncher");
+    } else {
+        return path.join(dataDir, "EverLauncher", sub);
     }
+}
 
-    public static getConfig() : Promise<EverConfig|undefined> {
-        return new Promise(resolve => {
-            Utils.getDataDir(EverLauncher.localConfig)
-            .then(configPath => {
-                return fs.readTextFile(configPath);
-            })
-            .then(config => {
-                resolve(EverConfig.fromJSON(config));
-            })
-            .catch(err => {
-                Utils.log(err);
-                resolve(undefined);
-            })
-        });
+export async function getConfig() : Promise<EverConfig|undefined> {
+    try {
+        const configPath = await getDataDir(EverLauncher.localConfig);
+        const config = await fs.readTextFile(configPath);
+        return EverConfig.fromJSON(config);
+    } catch (err) {
+        log(err);
+        return (undefined);
     }
+}
 
-    public static saveConfig(config: EverConfig) : Promise<void> {
-        return new Promise(resolve => {
-            Utils.getDataDir(EverLauncher.localConfig)
-            .then(configPath => {
-                return fs.writeFile({contents: JSON.stringify(config), path: configPath});
-            })
-            .then(() => {
-                resolve();
-            })
-        });
-    }
+export async function saveConfig(config: EverConfig) : Promise<void> {
+    const configPath = await getDataDir(EverLauncher.localConfig);
+    return fs.writeFile({ contents: JSON.stringify(config), path: configPath });
+}
 
-    /*eslint @typescript-eslint/no-explicit-any: "off"*/
-    /*eslint @typescript-eslint/explicit-module-boundary-types: "off"*/
-    public static log(message?: any, ...optionalParams: any[]) : void {
-        console.log(message, optionalParams);
-    }
+/*eslint @typescript-eslint/no-explicit-any: "off"*/
+/*eslint @typescript-eslint/explicit-module-boundary-types: "off"*/
+export function log(message?: any, ...optionalParams: any[]) : void {
+    console.log(message, optionalParams);
 }

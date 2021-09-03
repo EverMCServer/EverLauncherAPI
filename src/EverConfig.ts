@@ -18,65 +18,48 @@
  */
 
 import { Type, plainToClass } from "class-transformer";
+import { GameConfig } from "./GameConfig";
 
-declare namespace EverConfig {
-
-    class GameConfig {
-        public displayName: string;
-        public version: string;
-        public json: string;
-        public jreVersion: string;
-
-        @Type(() => DownloadSource)
-        public mods: Map<string, DownloadSource>;
-
-        @Type(() => DownloadSource)
-        public resourcepacks: Map<string, DownloadSource>;
-
-        @Type(() => DownloadSource)
-        public extra: Map<string, DownloadSource>;
-    }
-
-    class JREVersion {
-        public windows: DownloadSource;
-        public win32: DownloadSource;
-        public linux: DownloadSource;
-        public mac: DownloadSource;
-    }
-
-    class DownloadSource {
-        public link: string[];
-        public sha256: string;
-        public priority: Map<string, number[]>;
-    }
-
-    class ProxyConfig {
-        public priority: Map<string, string[]>;
-        public proxyList: Map<string, Map<string, string>>;
-    }
-
-    class RegionCheckConfig {
-        public url: string;
-        public regex: string;
-    }
+export class JREVersion {
+    public windows!: DownloadSource;
+    public win32!: DownloadSource;
+    public linux!: DownloadSource;
+    public mac!: DownloadSource;
 }
 
+export class DownloadSource {
+    public link!: string[];
+    public sha256!: string;
+    public priority!: Map<string, number[]>;
+}
 
-class EverConfig {
+export class ProxyConfig {
+    public priority!: Map<string, string[]>;
+    public proxyList!: Map<string, Map<string, string>>;
+}
 
-    @Type(() => EverConfig.JREVersion)
-    public jre!: Map<string, EverConfig.JREVersion>;
+export class RegionCheckConfig {
+    public url!: string;
+    public regex!: string;
+}
+
+export  { GameConfig } from "./GameConfig";
+
+export class EverConfig {
+
+    @Type(() => JREVersion)
+    public jre!: Map<string, JREVersion>;
 
     public defaultMcVersion!: string;
 
-    @Type(() => EverConfig.GameConfig)
-    public mcVersion!: Map<string, EverConfig.GameConfig>;
+    @Type(() => GameConfig)
+    public mcVersion!: Map<string, GameConfig>;
 
-    @Type(() => EverConfig.ProxyConfig)
-    public proxy!: Map<string, EverConfig.ProxyConfig>;
+    @Type(() => ProxyConfig)
+    public proxy!: Map<string, ProxyConfig>;
 
-    @Type(() => EverConfig.RegionCheckConfig)
-    public regionCheck!: EverConfig.RegionCheckConfig[];
+    @Type(() => RegionCheckConfig)
+    public regionCheck!: RegionCheckConfig[];
 
     public deploySource!: string;
     
@@ -94,5 +77,3 @@ class EverConfig {
     }
 
 }
-
-export default EverConfig;
