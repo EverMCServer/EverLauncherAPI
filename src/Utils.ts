@@ -98,6 +98,18 @@ export default class Utils {
         });
     }
 
+    public static saveConfig(config: EverConfig) : Promise<void> {
+        return new Promise(resolve => {
+            Utils.getDataDir(EverLauncher.localConfig)
+            .then(configPath => {
+                return fs.writeFile({contents: JSON.stringify(config), path: configPath});
+            })
+            .then(() => {
+                resolve();
+            })
+        });
+    }
+
     /*eslint @typescript-eslint/no-explicit-any: "off"*/
     /*eslint @typescript-eslint/explicit-module-boundary-types: "off"*/
     public static log(message?: any, ...optionalParams: any[]) : void {

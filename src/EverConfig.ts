@@ -85,6 +85,14 @@ class EverConfig {
         return plainToClass(EverConfig, obj);
     }
 
+    /**
+     * Merge another config into current one. Duplicated value will be overwritten.
+     * @param another another config
+     */
+    public merge(another: EverConfig) : void {
+        // TODO 
+    }
+
 }
 
 export default EverConfig;
