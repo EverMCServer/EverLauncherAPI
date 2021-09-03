@@ -46,8 +46,19 @@ export class EverLauncher {
         } else {
             config.merge(newconfig);
         }
+        await Utils.saveConfig(config);
+        if (config.deploySource !== undefined && config.deploySource !== remote) {
+            await this.fetchRemote();
+        }
         EverLauncher.currentConfig = config;
-        return await Utils.saveConfig(config);
+    }
+
+    public static async loadLocalConfig() : Promise<void> {
+        const config = await Utils.getConfig();
+        if (config === undefined) {
+            throw "No local config.";
+        }
+        EverLauncher.currentConfig = config;
     }
 
     public static async getRegion() : Promise<string> {
@@ -115,14 +126,11 @@ export class EverLauncher {
     }
 
     public static async getGameConfig(version: string) : Promise<GameConfig> {
-        if (!(EverLauncher.currentConfig instanceof EverConfig)) {
-            throw "Not initialized."
-        }
-        const config = EverLauncher.currentConfig.mcVersion.get(version);
+        const config = this.config().mcVersion.get(version);
         if (config instanceof GameConfig) {
             return config;
         } else {
-            throw "Version not found."
+            throw `Version ${version} not found.`
         }
     }
 }

@@ -25,6 +25,10 @@ export class JREVersion {
     public win32!: DownloadSource;
     public linux!: DownloadSource;
     public mac!: DownloadSource;
+    /*eslint @typescript-eslint/no-explicit-any: ["off"]*/
+    public get(platform: string) : DownloadSource {
+        return (this as any)[platform] as DownloadSource;
+    }
 }
 
 export class DownloadSource {
@@ -43,7 +47,7 @@ export class RegionCheckConfig {
     public regex!: string;
 }
 
-export  { GameConfig } from "./GameConfig";
+export { GameConfig } from "./GameConfig";
 
 export class EverConfig {
 

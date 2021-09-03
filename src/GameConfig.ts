@@ -18,7 +18,8 @@
  */
 
 import { Child, Command } from "@tauri-apps/api/shell";
-import { Type } from "class-transformer";
+import { Exclude, Type } from "class-transformer";
+import { EverLauncher } from ".";
 import { DownloadSource } from "./EverConfig";
 import * as Utils from './Utils'
 
@@ -38,6 +39,9 @@ export class GameConfig {
     @Type(() => DownloadSource)
     public extra!: Map<string, DownloadSource>;
 
+    @Exclude()
+    private jreDownloadSource!: DownloadSource;
+
     public async getJRE() : Promise<string|undefined> {
         if (typeof this.jreVersion !== "string" || this.jreVersion.length == 0) {
             throw "JRE version not set."
@@ -48,7 +52,7 @@ export class GameConfig {
         ) {
             return this.customJreLocation;
         }
-        const jreDir = await Utils.getDataDir("jre");
+        const jreDir = await this.getJREDefaultPath();
         const path = jreDir + "/" + this.jreVersion + "/bin/java";
         if (await GameConfig.getJRE(path)) {
             return path;
@@ -82,6 +86,39 @@ export class GameConfig {
                 }
             }, 1000);
         })
+    }
+
+    private getJREDownloadSource() : DownloadSource {
+        const version = EverLauncher.config().jre.get(this.jreVersion);
+        if (version === undefined) {
+            throw `JRE Version ${this.jreVersion} not available in ${EverLauncher.config().jre.keys}`
+        }
+        const url = version.get(EverLauncher.platform());
+        this.jreDownloadSource = url;
+        return url;
+    }
+
+    public getJREDownloadURL() : string[] {
+        const url = this.jreDownloadSource || this.getJREDownloadSource();
+        const region = EverLauncher.region();
+        const priority = url.priority.get(region);
+        if (priority !== undefined) {
+            const ret: string[] = [];
+            for (const index of priority) {
+                ret.push(url.link[index]);
+            }
+            return ret;
+        }
+        return url.link;
+    }
+
+    public getJREDownloadHash() : string {
+        const url = this.jreDownloadSource || this.getJREDownloadSource();
+        return url.sha256;
+    }
+
+    public getJREDefaultPath() : Promise<string> {
+        return Utils.getDataDir("jre");
     }
 
 }
